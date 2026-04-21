@@ -32,6 +32,11 @@ logs/*
 exports/*
 !exports/.gitkeep
 
+# 富邦 SDK 輸出的 log（非本專案 logs/）
+log/
+*.log
+*.log.[0-9]*
+
 # SQLite
 *.sqlite3
 *.sqlite3-journal

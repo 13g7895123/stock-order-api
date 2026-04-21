@@ -49,6 +49,7 @@ class InventoryItem(_DTO):
 class UnrealizedItem(_DTO):
     account: str
     symbol: str
+    name: str | None = None
     order_type: str = ""
     qty: int = 0
     avg_price: Decimal = Decimal("0")
@@ -61,6 +62,7 @@ class RealizedItem(_DTO):
     account: str
     trade_date: date
     symbol: str
+    name: str | None = None
     order_type: str = ""
     qty: int = 0
     buy_price: Decimal = Decimal("0")
@@ -187,6 +189,7 @@ def map_unrealized(raw: Any, acc: AccountRef) -> UnrealizedItem:
     return UnrealizedItem(
         account=_account_key(acc),
         symbol=str(_get(raw, "stock_no", "symbol", default="")),
+        name=_get(raw, "stock_name", "name"),
         order_type=str(_get(raw, "order_type", default="")),
         qty=_i(_get(raw, "qty", "stock_qty", "today_qty")),
         avg_price=_d(_get(raw, "avg_price", "cost_price")),
@@ -201,6 +204,7 @@ def map_realized(raw: Any, acc: AccountRef) -> RealizedItem:
         account=_account_key(acc),
         trade_date=_to_date(_get(raw, "trade_date", "date", "sell_date")),
         symbol=str(_get(raw, "stock_no", "symbol", default="")),
+        name=_get(raw, "stock_name", "name"),
         order_type=str(_get(raw, "order_type", default="")),
         qty=_i(_get(raw, "qty", "stock_qty")),
         buy_price=_d(_get(raw, "buy_price", "cost_price")),
@@ -262,10 +266,30 @@ class StockAccount:
         self.client = client
         self.audit = audit
         self.cache = TTLCache(store=audit)
+        from stock_order_api.fubon.symbol_names import SymbolNameResolver
+
+        self.name_resolver = SymbolNameResolver(client)
+
+    # ------------------------------------------------------------------
+    def _fill_names(self, items: list[Any]) -> None:
+        """用 REST 查詢補上尚未有 name 的商品名稱。in-place 修改。"""
+        missing = [
+            it.symbol
+            for it in items
+            if getattr(it, "symbol", "") and not getattr(it, "name", None)
+        ]
+        if not missing:
+            return
+        mapping = self.name_resolver.resolve_many(missing)
+        for it in items:
+            if not getattr(it, "name", None):
+                nm = mapping.get(it.symbol)
+                if nm:
+                    it.name = nm
 
     # ---- 六個查詢 ----
     def inventories(self, *, force: bool = False) -> list[InventoryItem]:
-        return self._query_list(
+        items = self._query_list(
             event="QUERY_INVENTORY",
             kind="inventories",
             ttl=self.INVENTORY_TTL,
@@ -273,9 +297,11 @@ class StockAccount:
             mapper=map_inventory,
             force=force,
         )
+        self._fill_names(items)
+        return items
 
     def unrealized(self, *, force: bool = False) -> list[UnrealizedItem]:
-        return self._query_list(
+        items = self._query_list(
             event="QUERY_UNREALIZED",
             kind="unrealized",
             ttl=self.UNREALIZED_TTL,
@@ -283,6 +309,8 @@ class StockAccount:
             mapper=map_unrealized,
             force=force,
         )
+        self._fill_names(items)
+        return items
 
     def realized(self, start: date, end: date) -> list[RealizedItem]:
         """查詢已實現損益；超過 90 天自動切片。"""
@@ -293,6 +321,7 @@ class StockAccount:
         for s, e in chunks:
             out.extend(self._realized_chunk(s, e))
         out.sort(key=lambda x: (x.trade_date, x.symbol))
+        self._fill_names(out)
         return out
 
     def _realized_chunk(self, start: date, end: date) -> list[RealizedItem]:

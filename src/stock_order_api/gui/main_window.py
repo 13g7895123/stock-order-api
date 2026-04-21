@@ -31,6 +31,7 @@ from stock_order_api.fubon.client import FubonClient
 from stock_order_api.fubon.errors import FubonError
 from stock_order_api.fubon.stock_account import StockAccount
 from stock_order_api.gui.login_dialog import LoginDialog
+from stock_order_api.gui.pages.order_page import OrderPage
 from stock_order_api.gui.pages.quote_page import QuotePage
 from stock_order_api.gui.pages.table_page import TablePage
 from stock_order_api.logging_setup import register_qt_sink
@@ -67,7 +68,7 @@ class LogPanel(QDockWidget):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("富邦帳務（Account Only）")
+        self.setWindowTitle("富邦 Neo - 帳務 + 即時行情 + 下單")
         self.resize(1180, 720)
 
         self.settings = get_settings()
@@ -140,6 +141,7 @@ class MainWindow(QMainWindow):
             title="未實現損益",
             columns=[
                 ("symbol", "代號"),
+                ("name", "名稱"),
                 ("order_type", "類別"),
                 ("qty", "數量"),
                 ("avg_price", "均價"),
@@ -195,6 +197,10 @@ class MainWindow(QMainWindow):
         self.page_quote = QuotePage(client=self.client)
         self.tabs.addTab(self.page_quote, "即時行情")
 
+        # 下單
+        self.page_order = OrderPage(client=self.client)
+        self.tabs.addTab(self.page_order, "下單")
+
     def _build_realized_page(self) -> QWidget:
         today = date.today()
         ed_from = QDateEdit(QDate(today.year, today.month, today.day).addDays(-30))
@@ -215,6 +221,7 @@ class MainWindow(QMainWindow):
             columns=[
                 ("trade_date", "日期"),
                 ("symbol", "代號"),
+                ("name", "名稱"),
                 ("order_type", "類別"),
                 ("qty", "數量"),
                 ("buy_price", "買進價"),
@@ -324,3 +331,13 @@ class MainWindow(QMainWindow):
         for s in setts:
             rows.append({"kind": "交割款", "t_date": s.t_date.isoformat(), "amount": s.amount})
         return rows
+
+    # ------------------------------------------------------------ close
+    def closeEvent(self, event: Any) -> None:
+        """關窗時主動 close 即時行情連線。"""
+        try:
+            if getattr(self, "page_quote", None) is not None and self.page_quote.rt is not None:
+                self.page_quote.rt.close()
+        except Exception as exc:  # pragma: no cover
+            logger.bind(event="GUI_CLOSE").warning(f"close realtime failed: {exc}")
+        super().closeEvent(event)
