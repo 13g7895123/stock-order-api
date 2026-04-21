@@ -1,0 +1,38 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 專案機密
+.env
+secrets/*
+!secrets/.gitkeep
+
+# 執行期輸出
+logs/*
+!logs/.gitkeep
+exports/*
+!exports/.gitkeep
+
+# SQLite
+*.sqlite3
+*.sqlite3-journal
+*.db

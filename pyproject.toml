@@ -1,0 +1,60 @@
+[project]
+name = "stock-order-api"
+version = "0.1.0"
+description = "Fubon Neo API 帳務模組（本機 GUI + CLI）"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+authors = [{ name = "Jarvis", email = "13g7895123@gmail.com" }]
+dependencies = [
+    "pydantic>=2",
+    "pydantic-settings>=2",
+    "loguru>=0.7",
+    "keyring>=24",
+    "cryptography>=42",
+    "PySide6>=6.6",
+    "typer>=0.12",
+    "rich>=13",
+]
+
+[project.optional-dependencies]
+# 富邦 SDK 非 PyPI 套件，請自行下載 wheel 後安裝：
+#   下載：https://www.fbs.com.tw/TradeAPI/docs/download/download-sdk
+#   安裝：uv add ./fubon_neo-*.whl
+#
+# （為避免 `uv sync` 找不到套件而失敗，此處不列為 optional-deps。）
+
+[project.scripts]
+stock-order-gui = "stock_order_api.__main__:main"
+stock-order-account = "stock_order_api.account_cli:app"
+
+[build-system]
+requires = ["uv_build>=0.9.8,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-mock>=3",
+    "mypy>=1.10",
+    "ruff>=0.5",
+]
+
+[tool.uv]
+# 保留空區塊以便未來擴充
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
