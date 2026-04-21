@@ -150,9 +150,16 @@ class FubonClient:
         api_secret = s.api_secret.get_secret_value() if s.api_secret else None
 
         t0 = time.perf_counter()
-        logger.bind(event="LOGIN").info(f"logging in as {s.personal_id}…")
+        if api_key and api_secret:
+            mode = "login+apikey"
+        elif api_key:
+            mode = "apikey_login"
+        else:
+            mode = "login"
+        logger.bind(event="LOGIN").info(f"logging in as {s.personal_id} (mode={mode})…")
         try:
             if api_key and api_secret:
+                # 舊版（Key + Secret 成對）：六參數 login
                 result = self._sdk.login(
                     s.personal_id,
                     s.password.get_secret_value(),
@@ -160,6 +167,14 @@ class FubonClient:
                     cert_pass,
                     api_key,
                     api_secret,
+                )
+            elif api_key:
+                # 新版：只有 API Key（沒有 Secret），走 apikey_login
+                result = self._sdk.apikey_login(
+                    s.personal_id,
+                    api_key,
+                    str(cert_path),
+                    cert_pass,
                 )
             else:
                 result = self._sdk.login(

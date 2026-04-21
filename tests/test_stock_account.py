@@ -13,7 +13,7 @@ from stock_order_api.fubon.errors import FubonAccountError
 from stock_order_api.fubon.stock_account import StockAccount
 
 
-class _FakeStock:
+class _FakeAccounting:
     def __init__(self) -> None:
         self.inv_calls = 0
 
@@ -27,14 +27,21 @@ class _FakeStock:
     def unrealized_gains_and_loses(self, acc: object) -> object:
         return SimpleNamespace(is_success=True, data=[])
 
-    def buying_power(self, acc: object) -> object:
-        return SimpleNamespace(is_success=True, data={"cash": "1000", "buying_power": "2500"})
+    def bank_remain(self, acc: object) -> object:
+        return SimpleNamespace(
+            is_success=True,
+            data=SimpleNamespace(balance="1000", available_balance="2500"),
+        )
 
     def realized_gains_and_loses(self, acc: object, start: str, end: str) -> object:
         return SimpleNamespace(is_success=True, data=[])
 
-    def settlements(self, acc: object) -> object:
-        return SimpleNamespace(is_success=True, data=[{"t_date": "2026-04-22", "amount": "500"}])
+    def query_settlement(self, acc: object, rng: str) -> object:
+        details = [SimpleNamespace(date="2026-04-22", total_settlement_amount="500")]
+        return SimpleNamespace(
+            is_success=True,
+            data=SimpleNamespace(details=details),
+        )
 
     def maintenance(self, acc: object) -> object:
         return SimpleNamespace(is_success=False, message="無信用戶")
@@ -42,7 +49,7 @@ class _FakeStock:
 
 class _FakeSDK:
     def __init__(self) -> None:
-        self.stock = _FakeStock()
+        self.accounting = _FakeAccounting()
 
 
 def _make_svc(tmp_path: Path) -> tuple[StockAccount, _FakeSDK]:
@@ -65,14 +72,14 @@ def test_inventories_cache_hit(tmp_path: Path) -> None:
     _ = svc.inventories()
     assert len(r1) == 1
     assert r1[0].symbol == "2881"
-    assert sdk.stock.inv_calls == 1  # 第二次命中 cache
+    assert sdk.accounting.inv_calls == 1  # 第二次命中 cache
 
 
 def test_inventories_force_refresh(tmp_path: Path) -> None:
     svc, sdk = _make_svc(tmp_path)
     svc.inventories()
     svc.inventories(force=True)
-    assert sdk.stock.inv_calls == 2
+    assert sdk.accounting.inv_calls == 2
 
 
 def test_maintenance_returns_none_when_no_credit(tmp_path: Path) -> None:
@@ -86,7 +93,7 @@ def test_error_propagates(tmp_path: Path) -> None:
     def boom(*a: object, **k: object) -> object:
         return SimpleNamespace(is_success=False, message="API error")
 
-    sdk.stock.unrealized_gains_and_loses = boom  # type: ignore[assignment]
+    sdk.accounting.unrealized_gains_and_loses = boom  # type: ignore[assignment]
     with pytest.raises(FubonAccountError):
         svc.unrealized()
 

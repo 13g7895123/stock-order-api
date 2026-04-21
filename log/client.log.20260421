@@ -1,0 +1,29 @@
+[2026-04-21 21:44:37.474205302 +08:00 INFO] [login] personal_id="R124443566"
+[2026-04-21 21:44:37.514300598 +08:00 INFO] this account require 2fa
+[2026-04-21 21:44:37.603053147 +08:00 INFO] [future_option_mapping]: 58.025586ms
+[2026-04-21 21:44:37.626104025 +08:00 INFO] [future_option_mapping]: 21.675109ms
+[2026-04-21 21:44:37.704625520 +08:00 INFO] [future_option_mapping]: 78.293086ms
+[2026-04-21 21:44:37.731128252 +08:00 INFO] [future_option_mapping]: 20.118998ms
+[2026-04-21 21:45:08.764141019 +08:00 INFO] [login] personal_id="R124443566"
+[2026-04-21 21:45:08.789261945 +08:00 INFO] this account require 2fa
+[2026-04-21 21:45:08.865546334 +08:00 INFO] [future_option_mapping]: 51.373949ms
+[2026-04-21 21:45:08.885928108 +08:00 INFO] [future_option_mapping]: 19.147394ms
+[2026-04-21 21:45:08.964743036 +08:00 INFO] [future_option_mapping]: 78.612699ms
+[2026-04-21 21:45:09.002251481 +08:00 INFO] [future_option_mapping]: 31.541932ms
+[2026-04-21 21:48:57.893684238 +08:00 INFO] [login] personal_id="R124443566"
+[2026-04-21 21:49:05.092799064 +08:00 INFO] this account require 2fa
+[2026-04-21 21:49:05.182001677 +08:00 INFO] [future_option_mapping]: 63.149265ms
+[2026-04-21 21:49:05.203539520 +08:00 INFO] [future_option_mapping]: 20.272284ms
+[2026-04-21 21:49:05.280530309 +08:00 INFO] [future_option_mapping]: 76.738575ms
+[2026-04-21 21:49:05.319156148 +08:00 INFO] [future_option_mapping]: 32.709536ms
+[2026-04-21 21:49:05.321205253 +08:00 INFO] [get inventories] account=Account { branch_no: "20607", account: "312174", account_type: "stock", name: "郭育憲" }
+[2026-04-21 21:48:57.803569668 +08:00 INFO] [inventory_result]: 93.98923ms
+[2026-04-21 21:51:16.153978226 +08:00 INFO] [apikey_login] personal_id="R124443566"
+[2026-04-21 21:51:16.181210363 +08:00 INFO] API Key account requires certificate validation
+[2026-04-21 21:51:16.205250461 +08:00 INFO] [apikey_login] Loaded permissions from XPSAZBIZS: {StockTrading, StockAccounting, MarketData}
+[2026-04-21 21:51:16.258852568 +08:00 INFO] [future_option_mapping]: 53.52358ms
+[2026-04-21 21:51:16.282117218 +08:00 INFO] [future_option_mapping]: 21.98805ms
+[2026-04-21 21:51:16.373069011 +08:00 INFO] [future_option_mapping]: 90.742395ms
+[2026-04-21 21:51:16.398239548 +08:00 INFO] [future_option_mapping]: 20.55036ms
+[2026-04-21 21:51:16.400081866 +08:00 INFO] [get inventories] account=Account { branch_no: "20607", account: "312174", account_type: "stock", name: "郭育憲" }
+[2026-04-21 21:51:16.470088990 +08:00 INFO] [inventory_result]: 69.970283ms

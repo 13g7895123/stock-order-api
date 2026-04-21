@@ -14,6 +14,7 @@ dependencies = [
     "PySide6>=6.6",
     "typer>=0.12",
     "rich>=13",
+    "fubon-neo",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,9 @@ dev = [
 ]
 
 [tool.uv]
+
+[tool.uv.sources]
+fubon-neo = { path = "fubon_neo-2.2.8-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl" }
 # 保留空區塊以便未來擴充
 
 [tool.ruff]

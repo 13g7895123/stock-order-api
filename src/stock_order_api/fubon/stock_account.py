@@ -15,6 +15,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
+from types import SimpleNamespace
 from typing import Any, cast
 
 from loguru import logger
@@ -213,8 +214,8 @@ def map_realized(raw: Any, acc: AccountRef) -> RealizedItem:
 def map_buying_power(raw: Any, acc: AccountRef) -> BuyingPower:
     return BuyingPower(
         account=_account_key(acc),
-        cash=_d(_get(raw, "cash", "cash_balance")),
-        buying_power=_d(_get(raw, "buying_power", "bp", "available")),
+        cash=_d(_get(raw, "cash", "cash_balance", "balance")),
+        buying_power=_d(_get(raw, "buying_power", "bp", "available", "available_balance")),
         margin_quota=_get(raw, "margin_quota"),
         short_quota=_get(raw, "short_quota"),
     )
@@ -223,8 +224,8 @@ def map_buying_power(raw: Any, acc: AccountRef) -> BuyingPower:
 def map_settlement(raw: Any, acc: AccountRef) -> SettlementItem:
     return SettlementItem(
         account=_account_key(acc),
-        t_date=_to_date(_get(raw, "t_date", "settle_date", "date")),
-        amount=_d(_get(raw, "amount", "settlement_amount")),
+        t_date=_to_date(_get(raw, "t_date", "settle_date", "date", "settlement_date")),
+        amount=_d(_get(raw, "amount", "settlement_amount", "total_settlement_amount")),
     )
 
 
@@ -268,7 +269,7 @@ class StockAccount:
             event="QUERY_INVENTORY",
             kind="inventories",
             ttl=self.INVENTORY_TTL,
-            sdk_call=lambda acc: self.client.sdk.stock.inventories(acc.raw),
+            sdk_call=lambda acc: self.client.sdk.accounting.inventories(acc.raw),
             mapper=map_inventory,
             force=force,
         )
@@ -278,7 +279,7 @@ class StockAccount:
             event="QUERY_UNREALIZED",
             kind="unrealized",
             ttl=self.UNREALIZED_TTL,
-            sdk_call=lambda acc: self.client.sdk.stock.unrealized_gains_and_loses(acc.raw),
+            sdk_call=lambda acc: self.client.sdk.accounting.unrealized_gains_and_loses(acc.raw),
             mapper=map_unrealized,
             force=force,
         )
@@ -299,7 +300,7 @@ class StockAccount:
             event="QUERY_REALIZED",
             kind=f"realized_{start.isoformat()}_{end.isoformat()}",
             ttl=0,  # 不快取
-            sdk_call=lambda acc: self.client.sdk.stock.realized_gains_and_loses(
+            sdk_call=lambda acc: self.client.sdk.accounting.realized_gains_and_loses(
                 acc.raw, start.isoformat(), end.isoformat()
             ),
             mapper=map_realized,
@@ -314,7 +315,7 @@ class StockAccount:
                 event="QUERY_BUYING_POWER",
                 kind="buying_power",
                 ttl=self.CASH_TTL,
-                sdk_call=lambda acc: self.client.sdk.stock.buying_power(acc.raw),
+                sdk_call=lambda acc: self.client.sdk.accounting.bank_remain(acc.raw),
                 mapper=map_buying_power,
                 force=force,
             ),
@@ -322,12 +323,14 @@ class StockAccount:
 
     def settlements(self, *, force: bool = False) -> list[SettlementItem]:
         def _call(acc: AccountRef) -> Any:
-            # SDK 可能需 `range` 參數；先試不帶、再試帶
-            fn = self.client.sdk.stock.settlements
-            try:
-                return fn(acc.raw)
-            except TypeError:
-                return fn(acc.raw, "0d")  # pragma: no cover
+            # query_settlement 回傳 Result{data: SettlementData{details:[...]}}，
+            # 拆出 details 後包回 SimpleNamespace 讓 _unwrap_result 直接拿到 list。
+            result = self.client.sdk.accounting.query_settlement(acc.raw, "3d")
+            if not getattr(result, "is_success", False):
+                return result
+            data = getattr(result, "data", None)
+            details = list(getattr(data, "details", None) or [])
+            return SimpleNamespace(is_success=True, message=None, data=details)
 
         return self._query_list(
             event="QUERY_SETTLEMENTS",
@@ -344,7 +347,7 @@ class StockAccount:
                 event="QUERY_MAINTENANCE",
                 kind="maintenance",
                 ttl=self.CASH_TTL,
-                sdk_call=lambda acc: self.client.sdk.stock.maintenance(acc.raw),
+                sdk_call=lambda acc: self.client.sdk.accounting.maintenance(acc.raw),
                 mapper=map_maintenance,
                 force=force,
             )
