@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     export_dir: Path = Path("exports")
     audit_db_path: Path = Path("logs/audit.sqlite3")
 
+    # 即時行情
+    realtime_mode: str = "speed"  # speed | normal
+    realtime_reconnect_max: int = 5
+    realtime_reconnect_base_sec: float = 2.0
+    realtime_reconnect_max_sec: float = 60.0
+    realtime_ring_buffer: int = 500
+    realtime_stats_interval: float = 10.0
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

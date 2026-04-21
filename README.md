@@ -1,10 +1,10 @@
 # stock-order-api
 
-富邦 Neo API 本機帳務模組：**登入 → 歸戶 → 六大帳務查詢**（庫存 / 未實現 / 已實現 / 買進力 / 交割 / 維持率），附 CLI、PySide6 GUI、完整日誌與 SQLite 稽核。
+富邦 Neo API 本機帳務模組：**登入 → 歸戶 → 六大帳務查詢**（庫存 / 未實現 / 已實現 / 買進力 / 交割 / 維持率），附 CLI、PySide6 GUI、完整日誌與 SQLite 稽核。另含 **WebSocket 即時行情**（5 channels × 多連線分片 × 自動重連）。
 
-> 本倉庫目前專注於「帳務查詢」，下單 / 行情 / 條件單 / 期權於後續計畫處理。
+> 本倉庫目前專注於「帳務查詢」與「即時行情」，下單 / 條件單 / 期權於後續計畫處理。
 >
-> 規劃文件：[plan.md](plan.md) · [plan-account.md](plan-account.md) · 憑證：[docs/fubon-credentials-guide.md](docs/fubon-credentials-guide.md)
+> 規劃文件：[plan.md](plan.md) · [plan-account.md](plan-account.md) · [plan-realtime.md](plan-realtime.md) · 憑證：[docs/fubon-credentials-guide.md](docs/fubon-credentials-guide.md)
 
 ---
 
@@ -55,6 +55,37 @@ uv run stock-order-gui            # 或 uv run python -m stock_order_api
 
 五個 Tab：庫存 / 未實現 / 已實現 / 現金&交割 / 維持率；支援非阻塞查詢、30 秒自動刷新、CSV 匯出、帳號切換清 cache。
 
+## 即時行情（WebSocket）
+
+```bash
+# 持續訂閱成交資訊（Ctrl-C 結束；table 模式 rich live 更新）
+uv run stock-order-quote watch trades 2330 2317 2454
+
+# 同時訂閱成交與五檔，輸出 JSON Lines
+uv run stock-order-quote watch trades,books 2330 --output jsonl
+
+# 輸出 CSV（結束時寫入 exports/）
+uv run stock-order-quote watch trades 2330 --output csv --duration 30
+
+# 快照一筆（等最多 3 秒）
+uv run stock-order-quote snapshot 2330 --wait 3
+
+# Normal 模式才能訂閱 candles / aggregates
+uv run stock-order-quote watch candles 2330 --mode normal
+```
+
+GUI 的「即時行情」Tab 提供報價表 + 五檔深度；切 mode 下拉可於 speed ↔ normal 之間切換（會自動關舊連線重建）。
+
+限制摘要（官方）：
+
+| 項目 | 上限 |
+| --- | --- |
+| 單一 WebSocket 連線 | 200 訂閱 |
+| 同帳號最大連線數 | 5 條 |
+| 理論天花板 | 1000 個 (channel × symbol) |
+
+`SubscriptionManager` 會自動分片；超過上限會 raise `SubscriptionLimitError`。
+
 ## 開發
 
 ```bash
@@ -73,6 +104,7 @@ uv run mypy src          # Type check
 | `logs/error.log`      | 錯誤獨立檔 |
 | `logs/audit.sqlite3`  | `audit_events` / `cache_entries` / `snapshots` |
 | `exports/*.csv`       | GUI / CLI 匯出資料 |
+| `STATS` log event     | 每 `FUBON_REALTIME_STATS_INTERVAL` 秒一筆，含每 channel 的 msg/s 與 p50/p95 延遲 |
 
 ## 安全
 
@@ -89,6 +121,9 @@ uv run mypy src          # Type check
 | `FubonLoginError: 憑證已過期` | 使用 TCEM.exe 展期 |
 | 歸戶後抓不到指定帳號 | 調整 `.env` 的 `FUBON_BRANCH_NO` / `FUBON_ACCOUNT_NO` 或改用 `--account 6460-xxxxxxx` |
 | `maintenance` 回 `None` | 帳號未開通融資融券 |
+| `ChannelNotAllowedError: Speed 模式不支援 channel=candles` | 改用 `--mode normal` 或訂閱 `trades/books/indices` |
+| `SubscriptionLimitError` | 超過 200 訂閱/連線 或 5 連線上限；減少商品或拆程序 |
+| `WebSocketConnectionClosedException` | 盤外或網路短線；`RealtimeClient` 會自動指數退避重連（預設最多 5 次） |
 
 ---
 

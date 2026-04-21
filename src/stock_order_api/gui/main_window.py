@@ -31,6 +31,7 @@ from stock_order_api.fubon.client import FubonClient
 from stock_order_api.fubon.errors import FubonError
 from stock_order_api.fubon.stock_account import StockAccount
 from stock_order_api.gui.login_dialog import LoginDialog
+from stock_order_api.gui.pages.quote_page import QuotePage
 from stock_order_api.gui.pages.table_page import TablePage
 from stock_order_api.logging_setup import register_qt_sink
 
@@ -189,6 +190,10 @@ class MainWindow(QMainWindow):
             export_kind="maintenance",
         )
         self.tabs.addTab(self.page_maint, "維持率")
+
+        # 即時行情
+        self.page_quote = QuotePage(client=self.client)
+        self.tabs.addTab(self.page_quote, "即時行情")
 
     def _build_realized_page(self) -> QWidget:
         today = date.today()

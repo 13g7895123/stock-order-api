@@ -27,6 +27,7 @@ dependencies = [
 [project.scripts]
 stock-order-gui = "stock_order_api.__main__:main"
 stock-order-account = "stock_order_api.account_cli:app"
+stock-order-quote = "stock_order_api.quote_cli:app"
 
 [build-system]
 requires = ["uv_build>=0.9.8,<0.10.0"]
