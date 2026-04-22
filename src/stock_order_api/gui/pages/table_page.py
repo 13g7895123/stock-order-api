@@ -36,6 +36,7 @@ class TablePage(QWidget):
     money_keys: 需千分位右對齊的欄位 key
     color_keys: 需正紅負綠的欄位 key（例如 pnl）
     export_kind: CSV 檔名 kind
+    post_load: 資料載入完成後在主執行緒呼叫的 callback(result)，可用於更新外部摘要元件
     """
 
     def __init__(
@@ -48,6 +49,7 @@ class TablePage(QWidget):
         money_keys: Iterable[str] = (),
         color_keys: Iterable[str] = (),
         export_kind: str = "data",
+        post_load: Callable[[Any], None] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -56,6 +58,7 @@ class TablePage(QWidget):
         self.color_keys = set(color_keys)
         self.fetcher = fetcher
         self.export_kind = export_kind
+        self._post_load = post_load
         self._rows: list[dict[str, Any]] = []
         self._pool = QThreadPool.globalInstance()
 
@@ -127,6 +130,8 @@ class TablePage(QWidget):
         self.lbl_status.setText(
             f"最後更新：{datetime.now().strftime('%H:%M:%S')}（筆數：{len(self._rows)}）"
         )
+        if self._post_load is not None:
+            self._post_load(result)
 
     def _on_failed(self, message: str, tb: str) -> None:
         self.btn_refresh.setEnabled(True)

@@ -162,19 +162,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.page_real, "已實現")
 
         # 現金 / 交割
-        self.page_cash = TablePage(
-            title="買進力 / 交割",
-            columns=[
-                ("kind", "項目"),
-                ("t_date", "日期"),
-                ("amount", "金額"),
-            ],
-            fetcher=self._load_cash,
-            auto_refresh_ms=30_000,
-            money_keys={"amount"},
-            export_kind="cash",
-        )
-        self.tabs.addTab(self.page_cash, "現金/交割")
+        self.tabs.addTab(self._build_cash_page(), "現金/交割")
 
         # 維持率
         self.page_maint = TablePage(
@@ -313,6 +301,61 @@ class MainWindow(QMainWindow):
         for page in (self.page_inv, self.page_unr, self.page_cash, self.page_maint):
             page.refresh(force=False)
 
+    def _build_cash_page(self) -> QWidget:
+        """建立現金/交割頁：頂部顯示交割餘額摘要，下方為明細表格。"""
+        # 摘要標籤
+        self._lbl_bank_balance = QLabel("交割餘額：—")
+        self._lbl_net_balance = QLabel("扣除未交割後餘額：—")
+        for lbl in (self._lbl_bank_balance, self._lbl_net_balance):
+            lbl.setStyleSheet("font-size: 14pt; font-weight: bold; padding: 4px 12px;")
+
+        # 初始化供 _load_cash 存放的暫存值
+        self._cash_bp: Any = None
+        self._cash_setts: list[Any] = []
+
+        self.page_cash = TablePage(
+            title="買進力 / 交割明細",
+            columns=[
+                ("kind", "項目"),
+                ("t_date", "日期"),
+                ("amount", "金額"),
+            ],
+            fetcher=self._load_cash,
+            auto_refresh_ms=30_000,
+            money_keys={"amount"},
+            export_kind="cash",
+            post_load=self._update_cash_summary,
+        )
+
+        summary_bar = QHBoxLayout()
+        summary_bar.addWidget(self._lbl_bank_balance)
+        summary_bar.addSpacing(40)
+        summary_bar.addWidget(self._lbl_net_balance)
+        summary_bar.addStretch(1)
+
+        wrap = QWidget()
+        lay = QVBoxLayout(wrap)
+        lay.addLayout(summary_bar)
+        lay.addWidget(self.page_cash, 1)
+        return wrap
+
+    def _update_cash_summary(self, _: Any) -> None:
+        """在主執行緒更新交割餘額摘要標籤（由 post_load callback 調用）。"""
+        bp = self._cash_bp
+        setts = self._cash_setts
+        if bp is None:
+            return
+        net = bp.cash + sum(s.amount for s in setts)
+
+        def _fmt(v: Any) -> str:
+            try:
+                return f"{float(v):,.0f}"
+            except (TypeError, ValueError):
+                return str(v)
+
+        self._lbl_bank_balance.setText(f"交割餘額：{_fmt(bp.cash)} 元")
+        self._lbl_net_balance.setText(f"扣除未交割後餘額：{_fmt(net)} 元")
+
     # ------------------------------------------------------------ services
     def _require_svc(self) -> StockAccount:
         if self.svc is None:
@@ -324,6 +367,9 @@ class MainWindow(QMainWindow):
         svc = self._require_svc()
         bp = svc.buying_power(force=force)
         setts = svc.settlements(force=force)
+        # 儲存以供主執行緒的 _update_cash_summary 讀取
+        self._cash_bp = bp
+        self._cash_setts = setts
         rows: list[dict[str, Any]] = [
             {"kind": "現金", "t_date": "-", "amount": bp.cash},
             {"kind": "買進力", "t_date": "-", "amount": bp.buying_power},
