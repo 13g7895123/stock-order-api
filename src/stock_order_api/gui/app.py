@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import sys
 import traceback
+import weakref
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import QObject, QRunnable, Signal, Slot
+from PySide6.QtCore import QObject, QRunnable, Signal, Slot, QThreadPool
 
 
 class WorkerSignals(QObject):
@@ -33,6 +34,30 @@ class Worker(QRunnable):
             self.signals.failed.emit(str(exc), traceback.format_exc())
             return
         self.signals.finished.emit(result)
+
+
+def start_worker(owner: Any, pool: QThreadPool, worker: Worker) -> Worker:
+    """保留背景 worker 直到 finished/failed，避免 UI callback 遺失。"""
+
+    pending = getattr(owner, "_active_workers", None)
+    if pending is None:
+        pending = set()
+        setattr(owner, "_active_workers", pending)
+    pending.add(worker)
+    owner_ref = weakref.ref(owner)
+
+    def _release(*_args: Any) -> None:
+        current_owner = owner_ref()
+        if current_owner is None:
+            return
+        current_pending = getattr(current_owner, "_active_workers", None)
+        if current_pending is not None:
+            current_pending.discard(worker)
+
+    worker.signals.finished.connect(_release)
+    worker.signals.failed.connect(_release)
+    pool.start(worker)
+    return worker
 
 
 def run_gui() -> int:

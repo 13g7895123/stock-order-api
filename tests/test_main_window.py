@@ -10,7 +10,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -52,5 +52,65 @@ def test_main_window_assembles(
         assert win.page_quote.btn_sub is not None
         # 下單頁需有 submit 按鈕
         assert win.page_order.btn_submit is not None
+    finally:
+        win.close()
+
+
+def test_do_login_uses_dialog_settings(
+    qapp: QApplication, env_vars: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from stock_order_api.config import Settings, reload_settings
+    from stock_order_api.fubon.client import AccountRef, FubonClient
+    from stock_order_api.gui import main_window as main_window_mod
+
+    reload_settings()
+
+    monkeypatch.setattr(main_window_mod.MainWindow, "_auto_login", lambda self: None)
+    monkeypatch.setattr(main_window_mod.MainWindow, "_refresh_all", lambda self: None)
+
+    custom = Settings(
+        personal_id="B987654321",
+        password="pw2",
+        cert_path=env_vars["FUBON_CERT_PATH"],
+        cert_password="cp2",
+        branch_no="9667",
+        account_no="0312174",
+        dry_run=False,
+    )
+
+    class _StubLoginDialog:
+        DialogCode = QDialog.DialogCode
+
+        def __init__(self, _parent: Any) -> None:
+            pass
+
+        def exec(self) -> int:
+            return QDialog.DialogCode.Accepted
+
+        def resolved_settings(self) -> Settings:
+            return custom
+
+    def _fake_login(self: FubonClient) -> list[AccountRef]:
+        account = AccountRef(
+            raw=object(),
+            branch_no=self.settings.branch_no,
+            account=self.settings.account_no,
+            account_name="測試帳號",
+        )
+        self._accounts = [account]
+        self._current = account
+        self._logged_in = True
+        return [account]
+
+    monkeypatch.setattr(main_window_mod, "LoginDialog", _StubLoginDialog)
+    monkeypatch.setattr(FubonClient, "login", _fake_login)
+
+    win = main_window_mod.MainWindow()
+    try:
+        win._do_login()
+        assert win.client.settings.personal_id == "B987654321"
+        assert win.client.settings.branch_no == "9667"
+        assert win.client.settings.account_no == "0312174"
+        assert "B987654321" in win.lbl_login.text()
     finally:
         win.close()

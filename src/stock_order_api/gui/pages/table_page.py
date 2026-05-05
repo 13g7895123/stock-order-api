@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from stock_order_api.gui.app import Worker
+from stock_order_api.gui.app import Worker, start_worker
 from stock_order_api.utils.csv_export import export_rows, models_to_rows
 
 
@@ -114,7 +114,7 @@ class TablePage(QWidget):
         worker = Worker(self.fetcher, force)
         worker.signals.finished.connect(self._on_loaded)
         worker.signals.failed.connect(self._on_failed)
-        self._pool.start(worker)
+        start_worker(self, self._pool, worker)
 
     def _on_loaded(self, result: Any) -> None:
         self.btn_refresh.setEnabled(True)

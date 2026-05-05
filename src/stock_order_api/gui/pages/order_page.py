@@ -38,7 +38,7 @@ from stock_order_api.fubon.stock_order import (
     OrderRequest,
     StockOrderService,
 )
-from stock_order_api.gui.app import Worker
+from stock_order_api.gui.app import Worker, start_worker
 
 
 class OrderPage(QWidget):
@@ -253,7 +253,7 @@ class OrderPage(QWidget):
         w = Worker(work)
         w.signals.finished.connect(self._on_submit_ok)
         w.signals.failed.connect(self._on_submit_err)
-        self._pool.start(w)
+        start_worker(self, self._pool, w)
 
     def _on_submit_ok(self, result: Any) -> None:
         self.btn_submit.setEnabled(True)
@@ -288,7 +288,7 @@ class OrderPage(QWidget):
         w = Worker(work)
         w.signals.finished.connect(self._on_orders_ok)
         w.signals.failed.connect(self._on_orders_err)
-        self._pool.start(w)
+        start_worker(self, self._pool, w)
 
     def _on_orders_ok(self, rows: Any) -> None:
         self.btn_refresh.setEnabled(True)
@@ -381,4 +381,4 @@ class OrderPage(QWidget):
 
         w.signals.finished.connect(_ok)
         w.signals.failed.connect(_err)
-        self._pool.start(w)
+        start_worker(self, self._pool, w)

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from stock_order_api.audit.store import AuditStore
-from stock_order_api.config import get_settings
+from stock_order_api.config import Settings, get_settings
 from stock_order_api.fubon.client import FubonClient
 from stock_order_api.fubon.errors import FubonError
 from stock_order_api.fubon.stock_account import StockAccount
@@ -253,13 +253,27 @@ class MainWindow(QMainWindow):
         dlg = LoginDialog(self)
         if dlg.exec() != dlg.DialogCode.Accepted:
             return
-        # TODO：以使用者輸入覆寫 settings（此處先沿用 .env + keyring）
         try:
+            self._apply_login_settings(dlg.resolved_settings())
             self.client.login()
         except FubonError as exc:
             QMessageBox.critical(self, "登入失敗", str(exc))
             return
         self._on_logged_in()
+
+    def _apply_login_settings(self, settings: Settings) -> None:
+        if self.page_quote.rt is not None:
+            self.page_quote._on_close_clicked()
+        self.client.logout()
+        self.settings = settings
+        self.client.settings = settings
+        self.svc = None
+        self.lbl_login.setText("未登入")
+        self.cbx_account.blockSignals(True)
+        self.cbx_account.clear()
+        self.cbx_account.blockSignals(False)
+        self.sb_cert.setText("憑證：—")
+        self.page_order._refresh_dry_label()
 
     def _on_logged_in(self) -> None:
         self.svc = StockAccount(client=self.client, audit=self.audit)
